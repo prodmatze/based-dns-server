@@ -19,25 +19,45 @@ def build_domain_name(domain_name):
 
     return encoded_name
 
-def build_response(headers, question):
-    #headers
-    id_bytes = headers["id"]
-    flags_bytes = headers["flags"]
-    qdcount_bytes = headers["qdcount"]
-    ancount_bytes = headers["ancount"]
-    nscount_bytes = headers["nscount"]
-    arcount_bytes = headers["arcount"]
+def build_ip_address(ip_address):
+    octets = ip_address.split(".")
 
-    headers = struct.pack("!HHHHHH", id_bytes, flags_bytes, qdcount_bytes, ancount_bytes, nscount_bytes, arcount_bytes)
+    ip_encoded = b""
 
-    #question
-    name_bytes = question["name"]
-    type_bytes = question["type"]
-    class_bytes = question["class"]
+    for octet in octets:
+        ip_encoded += bytes([int(octet)]) 
 
-    question = name_bytes + struct.pack("!HH", type_bytes, class_bytes)
+    return ip_encoded
 
-    return headers + question
+def build_response(headers, question, answer):
+    #header section
+    id_header = headers["id"]
+    flags_header = headers["flags"]
+    qdcount_header = headers["qdcount"]
+    ancount_header = headers["ancount"]
+    nscount_header= headers["nscount"]
+    arcount_header = headers["arcount"]
+
+    headers = struct.pack("!HHHHHH", id_header, flags_header, qdcount_header, ancount_header, nscount_header, arcount_header)
+
+    #question section
+    name_question = question["name"]
+    type_question = question["type"]
+    class_question = question["class"]
+
+    question = name_question + struct.pack("!HH", type_question, class_question)
+
+    #answer section
+    name_answer = answer["name"]
+    type_answer = answer["type"]
+    class_answer = answer["class"]
+    ttl_answer = answer["ttl"]
+    length_answer = answer["length"]
+    data_answer = answer["data"]
+
+    answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!HH", ttl_answer) + struct.pack("!HH", length_answer) + data_answer
+    
+    return headers + question + answer
 
 
 def main():
@@ -56,7 +76,7 @@ def main():
                 "id": 1234,
                 "flags": 0b1000000000000000,
                 "qdcount": 1,
-                "ancount": 0,
+                "ancount": 1,
                 "nscount": 0,
                 "arcount": 0
                 }
@@ -67,7 +87,16 @@ def main():
                 "class": 1,
             }
 
-            response = build_response(headers, question)
+            answer = {
+                "name": build_domain_name("codecrafters.io"),
+                "type": 1,
+                "class": 1,
+                "ttl": 60,
+                "length": 4,
+                "data": build_ip_address("8.8.8.8"),
+            }
+
+            response = build_response(headers, question, answer)
 
             print(f"Sending Response: {response}")
 
