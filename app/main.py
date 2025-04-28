@@ -5,10 +5,40 @@ def parse_query(query):
 
     return None
 
-def build_response(id, flags, qdcount, ancount, nscount, arcount):
+def build_domain_name(domain_name):
+    labels = domain_name.split(".")
+
+    encoded_name = b""
+
+    for label in labels:
+        length = len(label)
+        encoded_name += bytes([length])
+        encoded_name += label.encode()
+
+    encoded_name += b"\x00"
+
+    return encoded_name
+
+def build_response(headers, question):
+    #headers
+    id = headers["id"]
+    flags = headers["flags"]
+    qdcount = headers["qdcount"]
+    ancount = headers["ancount"]
+    nscount = headers["nscount"]
+    arcount = headers["arcount"]
+
     headers = struct.pack("!HHHHHH", id, flags, qdcount, ancount, nscount, arcount)
 
-    return headers
+    #question
+    name = question["name"]
+    type = question["type"]
+    _class = question["class"]
+
+    question = name + struct.pack("!HH", type, _class)
+
+    return headers + question
+
 
 def main():
     print("Logs from your program will appear here!")
@@ -22,13 +52,22 @@ def main():
 
             print(f"Incoming Query from {source} : {buf}")
 
-            id = 1234
-            flags = 0b1000000000000000
-            qdcount = 0
-            ancount = 0
-            nscount = 0
-            arcount = 0
-            response = build_response(id, flags, qdcount, ancount, nscount, arcount)
+            headers = {
+                "id": 1234,
+                "flags": 0b1000000000000000,
+                "qdcount": 0,
+                "ancount": 0,
+                "nscount": 0,
+                "arcount": 0
+                }
+
+            question = {
+                "name": build_domain_name("codecrafters.io"),
+                "type": 0b0000000000000001,
+                "class": 0b0000000000000001,
+            }
+
+            response = build_response(headers, question)
 
             print(f"Sending Response: {response}")
 
