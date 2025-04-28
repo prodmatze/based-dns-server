@@ -1,5 +1,14 @@
 import socket
+import struct
 
+def parse_query(query):
+
+    return None
+
+def build_response(id, flags, qdcount, ancount, nscount, arcount):
+    headers = struct.pack("!HHHHHH", id, flags, qdcount, ancount, nscount, arcount)
+
+    return headers
 
 def main():
     print("Logs from your program will appear here!")
@@ -11,7 +20,17 @@ def main():
         try:
             buf, source = udp_socket.recvfrom(512)
 
-            response = b""
+            print(f"Incoming Query from {source} : {buf}")
+
+            id = 1234
+            flags = 0b1000000000000000
+            qdcount = 0
+            ancount = 0
+            nscount = 0
+            arcount = 0
+            response = build_response(id, flags, qdcount, ancount, nscount, arcount)
+
+            print(f"Sending Response: {response}")
 
             udp_socket.sendto(response, source)
         except Exception as e:
