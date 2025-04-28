@@ -21,21 +21,21 @@ def build_domain_name(domain_name):
 
 def build_response(headers, question):
     #headers
-    id = headers["id"]
-    flags = headers["flags"]
-    qdcount = headers["qdcount"]
-    ancount = headers["ancount"]
-    nscount = headers["nscount"]
-    arcount = headers["arcount"]
+    id_bytes = headers["id"]
+    flags_bytes = headers["flags"]
+    qdcount_bytes = headers["qdcount"]
+    ancount_bytes = headers["ancount"]
+    nscount_bytes = headers["nscount"]
+    arcount_bytes = headers["arcount"]
 
-    headers = struct.pack("!HHHHHH", id, flags, qdcount, ancount, nscount, arcount)
+    headers = struct.pack("!HHHHHH", id_bytes, flags_bytes, qdcount_bytes, ancount_bytes, nscount_bytes, arcount_bytes)
 
     #question
-    name = question["name"]
-    type = question["type"]
-    _class = question["class"]
+    name_bytes = question["name"]
+    type_bytes = question["type"]
+    class_bytes = question["class"]
 
-    question = name + struct.pack("!HH", type, _class)
+    question = name_bytes + struct.pack("!HH", type_bytes, class_bytes)
 
     return headers + question
 
@@ -63,8 +63,8 @@ def main():
 
             question = {
                 "name": build_domain_name("codecrafters.io"),
-                "type": 0b0000000000000001,
-                "class": 0b0000000000000001,
+                "type": 1,
+                "class": 1,
             }
 
             response = build_response(headers, question)
