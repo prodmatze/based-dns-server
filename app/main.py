@@ -55,7 +55,7 @@ def build_response(headers, question, answer):
     length_answer = answer["length"]
     data_answer = answer["data"]
 
-    answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!HH", ttl_answer) + struct.pack("!HH", length_answer) + data_answer
+    answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!I", ttl_answer) + struct.pack("!H", length_answer) + data_answer
     
     return headers + question + answer
 
