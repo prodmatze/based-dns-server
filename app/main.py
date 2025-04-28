@@ -55,7 +55,7 @@ def main():
             headers = {
                 "id": 1234,
                 "flags": 0b1000000000000000,
-                "qdcount": 0,
+                "qdcount": 1,
                 "ancount": 0,
                 "nscount": 0,
                 "arcount": 0
