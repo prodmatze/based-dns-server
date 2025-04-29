@@ -2,8 +2,18 @@ import socket
 import struct
 
 def parse_query(query):
+    dns_id = struct.unpack("!H", query[0:2])[0]
 
-    return None
+
+
+    return dns_id
+
+
+def get_flags_from_query(query):
+    flags = query[2:4]
+
+    return flags
+
 
 def build_domain_name(domain_name):
     labels = domain_name.split(".")
@@ -77,7 +87,8 @@ def main():
 
             headers = {
                 "id": 1234,
-                "flags": 0b1000000000000000,
+                #"flags": 0b1000000000000000,
+                "flags": get_flags_from_query(buf),
                 "qdcount": 1,
                 "ancount": 1,
                 "nscount": 0,
