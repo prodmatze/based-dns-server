@@ -86,7 +86,7 @@ def main():
             print(f"Incoming Query from {source} : {buf}")
 
             headers = {
-                "id": 1234,
+                "id": parse_query(buf),
                 #"flags": 0b1000000000000000,
                 "flags": get_flags_from_query(buf),
                 "qdcount": 1,
