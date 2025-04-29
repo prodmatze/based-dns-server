@@ -29,6 +29,9 @@ def build_ip_address(ip_address):
 
     return ip_encoded
 
+# !H = One 16-bit unsigned integer (2bytes)
+# !HH = Two 16-bit unsigned integers (4bytes) --> ONE AFTER THE OTHER
+# !I = One 32-bit unsigned integer (4bytes) --> ALL IN ONE SINGLE STRING
 def build_response(headers, question, answer):
     #header section
     id_header = headers["id"]
