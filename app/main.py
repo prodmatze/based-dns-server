@@ -10,7 +10,7 @@ def parse_query(query):
 
 
 def get_flags_from_query(query):
-    flags = query[2:4]
+    flags = struct.unpack("!H", query[2:4])[0]
 
     return flags
 
