@@ -9,23 +9,46 @@ def parse_query(query):
     #!H only indicates how to INTERPRET the sliced bytes -> !H = these are big-endian, unsigned short (2 bytes)
     #always returns tuple -> access [0]
     
-    id = struct.unpack("!H", query[0:2])[0]
-    flags = struct.unpack("!H", query[2:4])[0]
-    qdcount = struct.unpack("!H", query[4:6])[0]
-    ancount = struct.unpack("!H", query[6:8])[0]
-    nscount = struct.unpack("!H", query[8:10])[0]
-    arcount = struct.unpack("!H", query[10:12])[0]
 
-    parsed_query = {
-        "id": id,
-        "flags": flags,
-        "qdcount": qdcount,
-        "ancount": ancount,
-        "nscount": nscount,
-        "arcount": arcount,
+    header = {
+        "id": struct.unpack("!H", query[0:2])[0],
+        "flags": struct.unpack("!H", query[2:4])[0],
+        "qdcount": struct.unpack("!H", query[4:6])[0],
+        "ancount": struct.unpack("!H", query[6:8])[0],
+        "nscount": struct.unpack("!H", query[8:10])[0],
+        "arcount": struct.unpack("!H", query[10:12])[0],
     }
 
-    return parsed_query
+    #question
+    question_name, question_offset = parse_name_section(query, 12)
+    question = {
+        "name": question_name,
+        "type": struct.unpack("!H", query[question_offset: question_offset+2]),
+        "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])
+    }
+    
+
+    return {"header": header, "question": question}
+
+def parse_name_section(query, offset):
+    #offset = byte where name starts
+    #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
+    labels = []
+
+    while True:
+        #query[offset] accesses individual byte
+        label_length = query[offset]
+        if label_length == 0:           #repeat until loop reaches null byte
+            offset += 1                 #skip null byte
+            break
+        offset += 1                     #start counting from one after length byte (one after the offset)
+        label = query[offset:offset + label_length].decode()
+        labels.append(label)
+        offset += label_length
+
+    domain_name = ".".join(labels)
+
+    return domain_name, offset
 
 #setting individual bits and shifting to the right flag positions
 #after ANDing them with the flag header, multibit fields need to get shifted right again!
@@ -168,12 +191,10 @@ def main():
                 "z": 000,            
                 "rcode": 0 if parsed_flags["opcode"] == 0 else 4,            
                 }
-            built_flags = build_flags(flags_to_send)
-
 
             headers = {
                 "id": parsed_query["id"],
-                "flags": built_flags,
+                "flags": build_flags(flags_to_send),
                 "qdcount": 1,
                 "ancount": 1,
                 "nscount": 0,
