@@ -166,9 +166,12 @@ def main():
                 "z": 000,            
                 "rcode": 0000,            
                 }
+            built_flags = build_flags(flags_to_send)
+
+
             headers = {
                 "id": parsed_query["id"],
-                "flags": flags_to_send,
+                "flags": built_flags,
                 "qdcount": 1,
                 "ancount": 1,
                 "nscount": 0,
