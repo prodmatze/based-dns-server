@@ -192,7 +192,7 @@ def main():
                 }
 
             headers = {
-                "id": parsed_query["id"],
+                "id": parsed_query["header"]["id"],
                 "flags": build_flags(flags_to_send),
                 "qdcount": 1,
                 "ancount": 1,
