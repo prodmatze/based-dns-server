@@ -2,38 +2,96 @@ import socket
 import struct
 
 def parse_query(query):
-    dns_id = struct.unpack("!H", query[0:2])[0]
 
-
-
-    return dns_id
-
-
-def get_flags_from_query(query):
+    #struct.unpack:
+    #give struct.unpack a bytes object, and tell it how to interpret it
+    #you can slice bytestring like any string/array: [0:2]  ->  return slice FROM 0 Index UP TO BUT NOT INCLUDING 2 INDEX -> first 2 
+    #!H only indicates how to INTERPRET the sliced bytes -> !H = these are big-endian, unsigned short (2 bytes)
+    #always returns tuple -> access [0]
+    
+    id = struct.unpack("!H", query[0:2])[0]
     flags = struct.unpack("!H", query[2:4])[0]
+    qdcount = struct.unpack("!H", query[4:6])[0]
+    ancount = struct.unpack("!H", query[6:8])[0]
+    nscount = struct.unpack("!H", query[8:10])[0]
+    arcount = struct.unpack("!H", query[10:12])[0]
+
+    parsed_query = {
+        "id": id,
+        "flags": flags,
+        "qdcount": qdcount,
+        "ancount": ancount,
+        "nscount": nscount,
+        "arcount": arcount,
+    }
+
+    return parsed_query
+
+#setting individual bits and shifting to the right flag positions
+#after ANDing them with the flag header, multibit fields need to get shifted right again!
+flag_masks = {
+    "qr": 1 << 15,              #query/respose
+    "opcode": 0b1111 << 11,     #4-bit Opcode
+    "aa": 1 << 10,              #Authoritative answer?
+    "tc": 1 << 9,               #truncated
+    "rd": 1 << 8,               #recursive desired
+    "ra": 1 << 7,               #recursive available
+    "z": 0b111 << 4,            #reserved (must be 0)
+    "rcode": 0b1111,            #4-bit response code
+}
+
+def get_flags_from_flag(flags):
+
+    parsed_flags = {
+        "qr": 1 if flags & flag_masks["qr"] else 0,
+        "opcode": (flags & flag_masks["opcode"]) >> 11,
+        "aa": 1 if flags & flag_masks["aa"] else 0,  
+        "tc": 1 if flags & flag_masks["tc"] else 0,  
+        "rd": 1 if flags & flag_masks["rd"] else 0,  
+        "ra": 1 if flags & flag_masks["ra"] else 0,  
+        "z": (flags & flag_masks["z"]) >> 4,
+        "rcode": flags & flag_masks["rcode"]
+    }
+
+    print("Parsed these Flags:")
+    for key, value in parsed_flags.items():
+        print(f"{key.upper():7}: {value}")
+
+    return parsed_flags
+
+def build_flags(flag_dict):
+    qr = flag_dict["qr"] << 15
+    opcode = flag_dict["opcode"] << 11
+    aa = flag_dict["a"] << 10 
+    tc = flag_dict["tc"] << 9
+    rd = flag_dict["rd"] << 8
+    ra = flag_dict["ra"] << 7
+    z = flag_dict["z"] << 4
+    rcode = flag_dict["rcode"]
+
+    flag_list = [qr, opcode, aa, tc, rd, ra, z, rcode]
+
+    flags = 0
+
+    for flag in flag_list:
+        flags = flags | flag
 
     return flags
 
-
 def build_domain_name(domain_name):
     labels = domain_name.split(".")
-
     encoded_name = b""
-
     for label in labels:
         length = len(label)
         encoded_name += bytes([length])
         encoded_name += label.encode()
-
     encoded_name += b"\x00"
 
     return encoded_name
 
 def build_ip_address(ip_address):
     octets = ip_address.split(".")
-
     ip_encoded = b""
-
     for octet in octets:
         ip_encoded += bytes([int(octet)]) 
 
@@ -85,10 +143,32 @@ def main():
 
             print(f"Incoming Query from {source} : {buf}")
 
+            # parsed_query = {
+            #     "id": id,
+            #     "flags": flags,
+            #     "qdcount": qdcount,
+            #     "ancount": ancount,
+            #     "nscount": nscount,
+            #     "arcount": arcount,
+            # }
+            parsed_query = parse_query(buf)
+
+            flags_from_query = parsed_query["flags"]
+            parsed_flags = get_flags_from_flag(flags_from_query)
+
+            flags_to_send = {
+                "qr": 1,              
+                "opcode": parsed_flags["opcode"],     
+                "aa": 0,              
+                "tc": 0,               
+                "rd": parsed_flags["rd"],               
+                "ra": 0,               
+                "z": 000,            
+                "rcode": 0000,            
+                }
             headers = {
-                "id": parse_query(buf),
-                #"flags": 0b1000000000000000,
-                "flags": get_flags_from_query(buf),
+                "id": parsed_query["id"],
+                "flags": flags_to_send,
                 "qdcount": 1,
                 "ancount": 1,
                 "nscount": 0,
