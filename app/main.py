@@ -156,6 +156,8 @@ def main():
             flags_from_query = parsed_query["flags"]
             parsed_flags = get_flags_from_flag(flags_from_query)
 
+
+
             flags_to_send = {
                 "qr": 1,              
                 "opcode": parsed_flags["opcode"],     
@@ -164,7 +166,7 @@ def main():
                 "rd": parsed_flags["rd"],               
                 "ra": 0,               
                 "z": 000,            
-                "rcode": 0000,            
+                "rcode": 0 if parsed_flags["opcode"] == 0 else 4,            
                 }
             built_flags = build_flags(flags_to_send)
 
