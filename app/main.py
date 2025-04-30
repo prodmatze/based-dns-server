@@ -8,7 +8,6 @@ def parse_query(query):
     #you can slice bytestring like any string/array: [0:2]  ->  return slice FROM 0 Index UP TO BUT NOT INCLUDING 2 INDEX -> first 2 
     #!H only indicates how to INTERPRET the sliced bytes -> !H = these are big-endian, unsigned short (2 bytes)
     #always returns tuple -> access [0]
-    
 
     header = {
         "id": struct.unpack("!H", query[0:2])[0],
@@ -174,22 +173,22 @@ def main():
             #     "nscount": nscount,
             #     "arcount": arcount,
             # }
+
+            #parsing the query:
             parsed_query = parse_query(buf)
 
-            flags_from_query = parsed_query["flags"]
-            parsed_flags = get_flags_from_flag(flags_from_query)
+            query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
 
-
-
+            #setting flags for the answer
             flags_to_send = {
                 "qr": 1,              
-                "opcode": parsed_flags["opcode"],     
+                "opcode": query_flags["opcode"],     
                 "aa": 0,              
                 "tc": 0,               
-                "rd": parsed_flags["rd"],               
+                "rd": query_flags["rd"],               
                 "ra": 0,               
                 "z": 000,            
-                "rcode": 0 if parsed_flags["opcode"] == 0 else 4,            
+                "rcode": 0 if query_flags["opcode"] == 0 else 4,            
                 }
 
             headers = {
@@ -202,13 +201,13 @@ def main():
                 }
 
             question = {
-                "name": build_domain_name("codecrafters.io"),
+                "name": build_domain_name(parsed_query["question"]["name"]),
                 "type": 1,
                 "class": 1,
             }
 
             answer = {
-                "name": build_domain_name("codecrafters.io"),
+                "name": build_domain_name(parsed_query["question"]["name"]),
                 "type": 1,
                 "class": 1,
                 "ttl": 60,
