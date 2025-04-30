@@ -62,7 +62,7 @@ def get_flags_from_flag(flags):
 def build_flags(flag_dict):
     qr = flag_dict["qr"] << 15
     opcode = flag_dict["opcode"] << 11
-    aa = flag_dict["a"] << 10 
+    aa = flag_dict["aa"] << 10 
     tc = flag_dict["tc"] << 9
     rd = flag_dict["rd"] << 8
     ra = flag_dict["ra"] << 7
@@ -198,7 +198,6 @@ def main():
         except Exception as e:
             print(f"Error receiving data: {e}")
             break
-
 
 if __name__ == "__main__":
     main()
