@@ -243,15 +243,6 @@ def main():
 
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
 
-            if query_forwarding:
-                resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                resolver_socket.sendto(buf, (resolve_ip, resolve_port))
-
-                response, _ = resolver_socket.recvfrom(512)
-
-                udp_socket.sendto(response, source)
-
-                break
 
                 
 
@@ -275,6 +266,24 @@ def main():
                 "nscount": 0,
                 "arcount": 0
                 }
+
+            if query_forwarding:
+                resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                resolver_socket.sendto(buf, (resolve_ip, resolve_port))
+
+                response, _ = resolver_socket.recvfrom(512)
+
+                parsed_response = parsed_query(response)
+
+                questions = parsed_query["questions"]
+                answers = parsed_query["answers"]
+
+                response_to_send = build_response(headers, questions, answers)
+                
+
+                udp_socket.sendto(response_to_send, source)
+
+                break
 
             questions = []
             answers = []
