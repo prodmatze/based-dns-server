@@ -41,14 +41,6 @@ def parse_all_questions(query, qdcount, offset):
 
     return questions
 
-def parse_query(query):
-    header = parse_header(query)
-    question_count = header["qdcount"]
-
-    questions = parse_all_questions(query, question_count, 12)
-
-    return {"header": header, "questions": questions}
-
 def parse_name_section(query, offset):
     #offset = byte where name starts
     #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
@@ -77,6 +69,14 @@ def parse_name_section(query, offset):
     domain_name = ".".join(labels)
 
     return domain_name, offset
+
+def parse_query(query):
+    header = parse_header(query)
+    question_count = header["qdcount"]
+
+    questions = parse_all_questions(query, question_count, 12)
+
+    return {"header": header, "questions": questions}
 
 #setting individual bits and shifting to the right flag positions
 #after ANDing them with the flag header, multibit fields need to get shifted right again!
@@ -151,8 +151,7 @@ def build_ip_address(ip_address):
 # !H = One 16-bit unsigned integer (2bytes)
 # !HH = Two 16-bit unsigned integers (4bytes) --> ONE AFTER THE OTHER
 # !I = One 32-bit unsigned integer (4bytes) --> ALL IN ONE SINGLE STRING
-def build_response(header, questions, answers):
-    #header section
+def build_header(header):
     id_header = header["id"]
     flags_header = header["flags"]
     qdcount_header = header["qdcount"]
@@ -160,26 +159,44 @@ def build_response(header, questions, answers):
     nscount_header= header["nscount"]
     arcount_header = header["arcount"]
 
-    headers = struct.pack("!HHHHHH", id_header, flags_header, qdcount_header, ancount_header, nscount_header, arcount_header)
+    header = struct.pack("!HHHHHH", id_header, flags_header, qdcount_header, ancount_header, nscount_header, arcount_header)
 
-    #question section
-    name_question = questions["name"]
-    type_question = questions["type"]
-    class_question = questions["class"]
+    return header
+
+def build_question(question):
+    name_question = question["name"]
+    type_question = question["type"]
+    class_question = question["class"]
 
     question = name_question + struct.pack("!HH", type_question, class_question)
 
-    #answer section
-    name_answer = answers["name"]
-    type_answer = answers["type"]
-    class_answer = answers["class"]
-    ttl_answer = answers["ttl"]
-    length_answer = answers["length"]
-    data_answer = answers["data"]
+    return question
+
+def build_answer(answer):
+    name_answer = answer["name"]
+    type_answer = answer["type"]
+    class_answer = answer["class"]
+    ttl_answer = answer["ttl"]
+    length_answer = answer["length"]
+    data_answer = answer["data"]
 
     answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!I", ttl_answer) + struct.pack("!H", length_answer) + data_answer
-    
-    return headers + question + answer
+
+    return answer
+
+def build_response(header, questions, answers):
+    header = build_header(header)
+
+    question_section = b""
+    answer_section = b""
+
+    for question in questions:
+        question_section += build_question(question)
+
+    for answer in answers:
+        answer_section += build_answer(answer)
+
+    return header + question_section + answer_section
 
 
 def main():
@@ -208,6 +225,7 @@ def main():
 
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
 
+
             #setting flags for the answer
             flags_to_send = {
                 "qr": 1,              
@@ -223,11 +241,33 @@ def main():
             headers = {
                 "id": parsed_query["header"]["id"],
                 "flags": build_flags(flags_to_send),
-                "qdcount": 1,
-                "ancount": 1,
+                "qdcount": parsed_query["header"]["qdcount"],
+                "ancount": parsed_query["header"]["qdcount"],
                 "nscount": 0,
                 "arcount": 0
                 }
+
+            questions = []
+            answers = []
+            for i in range(0, parsed_query["header"]["qdcount"] - 1):
+                questions.append(
+                    {
+                    "name": build_domain_name(parsed_query["questions"][i]["name"]),
+                    "type": 1,
+                    "class": 1,
+                    }
+                )
+            
+                answers.append(
+                    {
+                    "name": build_domain_name(parsed_query["question"][i]["name"]),
+                    "type": 1,
+                    "class": 1,
+                    "ttl": 60,
+                    "length": 4,
+                    "data": build_ip_address("8.8.8.8"),
+                    }
+                )
 
             question = {
                 "name": build_domain_name(parsed_query["question"]["name"]),
@@ -244,7 +284,7 @@ def main():
                 "data": build_ip_address("8.8.8.8"),
             }
 
-            response = build_response(headers, question, answer)
+            response = build_response(headers, questions, answers)
 
             print(f"Sending Response: {response}")
 
