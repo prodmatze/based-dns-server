@@ -41,14 +41,27 @@ def parse_all_questions(query, qdcount, offset):
 
     return questions
 
-# def parse_query(query):
-#     header = parse_header(query)
-#     qd_count = header["qdcount"]
+def parse_query(query):
+    header = parse_header(query)
+    question_count = header["qdcount"]
+
+    questions = parse_all_questions(query, question_count, 12)
+
+    return {"header": header, "questions": questions}
 
 def parse_name_section(query, offset):
     #offset = byte where name starts
     #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
     labels = []
+
+    pointer_indicator = 0b11000000
+    pointer_mask = 0b0011111111111111
+
+    if query[offset] & pointer_indicator == pointer_indicator:
+        pointer_bytes = query[offset:offset+2]
+        pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask
+        domain_name, _ = parse_name_section(query, pointer)
+        return domain_name, offset + 2
 
     while True:
         #query[offset] accesses individual byte
@@ -138,31 +151,31 @@ def build_ip_address(ip_address):
 # !H = One 16-bit unsigned integer (2bytes)
 # !HH = Two 16-bit unsigned integers (4bytes) --> ONE AFTER THE OTHER
 # !I = One 32-bit unsigned integer (4bytes) --> ALL IN ONE SINGLE STRING
-def build_response(headers, question, answer):
+def build_response(header, questions, answers):
     #header section
-    id_header = headers["id"]
-    flags_header = headers["flags"]
-    qdcount_header = headers["qdcount"]
-    ancount_header = headers["ancount"]
-    nscount_header= headers["nscount"]
-    arcount_header = headers["arcount"]
+    id_header = header["id"]
+    flags_header = header["flags"]
+    qdcount_header = header["qdcount"]
+    ancount_header = header["ancount"]
+    nscount_header= header["nscount"]
+    arcount_header = header["arcount"]
 
     headers = struct.pack("!HHHHHH", id_header, flags_header, qdcount_header, ancount_header, nscount_header, arcount_header)
 
     #question section
-    name_question = question["name"]
-    type_question = question["type"]
-    class_question = question["class"]
+    name_question = questions["name"]
+    type_question = questions["type"]
+    class_question = questions["class"]
 
     question = name_question + struct.pack("!HH", type_question, class_question)
 
     #answer section
-    name_answer = answer["name"]
-    type_answer = answer["type"]
-    class_answer = answer["class"]
-    ttl_answer = answer["ttl"]
-    length_answer = answer["length"]
-    data_answer = answer["data"]
+    name_answer = answers["name"]
+    type_answer = answers["type"]
+    class_answer = answers["class"]
+    ttl_answer = answers["ttl"]
+    length_answer = answers["length"]
+    data_answer = answers["data"]
 
     answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!I", ttl_answer) + struct.pack("!H", length_answer) + data_answer
     
