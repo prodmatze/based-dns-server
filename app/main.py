@@ -1,7 +1,7 @@
 import socket
 import struct
 
-def parse_query(query):
+def parse_header(query):
 
     #struct.unpack:
     #give struct.unpack a bytes object, and tell it how to interpret it
@@ -18,16 +18,32 @@ def parse_query(query):
         "arcount": struct.unpack("!H", query[10:12])[0],
     }
 
-    #question
-    question_name, question_offset = parse_name_section(query, 12)
+    return header
+
+def parse_question(query, offset):
+    question_name, question_offset = parse_name_section(query, offset)
     question = {
         "name": question_name,
         "type": struct.unpack("!H", query[question_offset: question_offset+2]),
         "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])
     }
-    
 
-    return {"header": header, "question": question}
+    post_question_offset = question_offset + 4
+    return question, post_question_offset 
+
+def parse_all_questions(query, qdcount, offset):
+    questions = []
+
+    for i in range(qdcount):
+        question, post_question_offset = parse_question(query, offset)
+        questions.append(question)
+        offset = post_question_offset
+
+    return questions
+
+# def parse_query(query):
+#     header = parse_header(query)
+#     qd_count = header["qdcount"]
 
 def parse_name_section(query, offset):
     #offset = byte where name starts
