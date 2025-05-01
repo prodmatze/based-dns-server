@@ -273,12 +273,12 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-                parsed_response = parse_query(response)
-
-                questions = parsed_response["questions"]
-                answers = parsed_response["answers"]
-
-                response_to_send = build_response(headers, questions, answers)
+                # parsed_response = parse_query(response)
+                #
+                # questions = parsed_response["questions"]
+                # answers = parsed_response["answers"]
+                #
+                # response_to_send = build_response(headers, questions, answers)
                 
 
                 udp_socket.sendto(response, source)
