@@ -249,8 +249,7 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-
-                udp_socket.sendto(response)
+                udp_socket.sendto(response, source)
 
                 break
 
