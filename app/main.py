@@ -281,7 +281,7 @@ def main():
                 response_to_send = build_response(headers, questions, answers)
                 
 
-                udp_socket.sendto(response_to_send, source)
+                udp_socket.sendto(response, source)
 
                 break
 
