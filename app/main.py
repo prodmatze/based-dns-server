@@ -1,5 +1,24 @@
 import socket
 import struct
+import argparse
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument("--resolver")
+args = argparser.parse_args()
+
+query_forwarding = False
+
+if args.resolver:
+    resolve_ip, resolve_port = args.resolver.split(":")
+    resolve_port = int(resolve_port)
+
+    query_forwarding = True
+    print(f"RESOLVING IN FORWARDING MODE - Using resolver at {resolve_ip}:{resolve_port}")
+else:
+    print(f"RESOLVING IN LOCAL MODE - NO FORWARDING")
+
+
+
 
 def parse_header(query):
 
@@ -224,6 +243,19 @@ def main():
 
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
 
+            if query_forwarding:
+                resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                resolver_socket.sendto(buf, (resolve_ip, resolve_port))
+
+                response, _ = resolver_socket.recvfrom(512)
+
+                parsed_response = parsed_query(response)
+
+                udp_socket.sendto(response)
+
+                break
+
+                
 
             #setting flags for the answer
             flags_to_send = {
