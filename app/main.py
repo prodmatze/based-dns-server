@@ -49,15 +49,14 @@ def parse_name_section(query, offset):
     pointer_indicator = 0b11000000
     pointer_mask = 0b0011111111111111
 
-    if query[offset] & pointer_indicator == pointer_indicator:
-        pointer_bytes = query[offset:offset+2]
-        pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask
-        domain_name, _ = parse_name_section(query, pointer)
-        return domain_name, offset + 2
-
     while True:
         #query[offset] accesses individual byte
         label_length = query[offset]
+        if query[offset] & pointer_indicator == pointer_indicator:
+            pointer_bytes = query[offset:offset+2]
+            pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask
+            domain_name, _ = parse_name_section(query, pointer)
+            return domain_name, offset + 2
         if label_length == 0:           #repeat until loop reaches null byte
             offset += 1                 #skip null byte
             break
