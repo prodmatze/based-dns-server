@@ -249,7 +249,6 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-                parsed_response = parsed_query(response)
 
                 udp_socket.sendto(response)
 
