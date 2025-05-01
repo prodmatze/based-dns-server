@@ -273,10 +273,10 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-                parsed_response = parsed_query(response)
+                parsed_response = parse_query(response)
 
-                questions = parsed_query["questions"]
-                answers = parsed_query["answers"]
+                questions = parsed_response["questions"]
+                answers = parsed_response["answers"]
 
                 response_to_send = build_response(headers, questions, answers)
                 
