@@ -252,6 +252,7 @@ def main():
 
             for i in range(parsed_query["header"]["qdcount"]):
                 qname = parsed_query["questions"][i]["name"]
+                print(f"PARSING QNAME_{i}: {qname}")
                 questions.append(
                     {
                     "name": build_domain_name(qname),
@@ -270,6 +271,9 @@ def main():
                     "data": build_ip_address("8.8.8.8"),
                     }
                 )
+
+            print(f"BUILT THESE QUESTIONS ({len(questions)}): {questions}")
+            print(f"BUILT THESE ANSWERS ({len(answers)}): {answers}")
 
             response = build_response(headers, questions, answers)
 
