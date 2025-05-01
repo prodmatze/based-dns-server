@@ -249,7 +249,7 @@ def main():
 
             questions = []
             answers = []
-            for i in range(0, parsed_query["header"]["qdcount"] - 1):
+            for i in range(parsed_query["header"]["qdcount"]):
                 questions.append(
                     {
                     "name": build_domain_name(parsed_query["questions"][i]["name"]),
@@ -260,7 +260,7 @@ def main():
             
                 answers.append(
                     {
-                    "name": build_domain_name(parsed_query["question"][i]["name"]),
+                    "name": build_domain_name(parsed_query["questions"][i]["name"]),
                     "type": 1,
                     "class": 1,
                     "ttl": 60,
