@@ -249,10 +249,12 @@ def main():
 
             questions = []
             answers = []
+
             for i in range(parsed_query["header"]["qdcount"]):
+                qname = parsed_query["questions"][i]["name"]
                 questions.append(
                     {
-                    "name": build_domain_name(parsed_query["questions"][i]["name"]),
+                    "name": build_domain_name(qname),
                     "type": 1,
                     "class": 1,
                     }
@@ -260,7 +262,7 @@ def main():
             
                 answers.append(
                     {
-                    "name": build_domain_name(parsed_query["questions"][i]["name"]),
+                    "name": build_domain_name(qname),
                     "type": 1,
                     "class": 1,
                     "ttl": 60,
@@ -268,21 +270,6 @@ def main():
                     "data": build_ip_address("8.8.8.8"),
                     }
                 )
-
-            question = {
-                "name": build_domain_name(parsed_query["question"]["name"]),
-                "type": 1,
-                "class": 1,
-            }
-
-            answer = {
-                "name": build_domain_name(parsed_query["question"]["name"]),
-                "type": 1,
-                "class": 1,
-                "ttl": 60,
-                "length": 4,
-                "data": build_ip_address("8.8.8.8"),
-            }
 
             response = build_response(headers, questions, answers)
 
