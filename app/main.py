@@ -89,23 +89,39 @@ def parse_name_section(query, offset):
     return domain_name, offset
 
 def parse_answer(query, offset):
-    answer_name, answer_offset = parse_name_section(query, offset)
+    answer_name, offset = parse_name_section(query, offset)
+
+    type_ = struct.unpack("!H", query[offset:offset+2])[0]
+    offset += 2
+    
+    class_ = struct.unpack("!H", query[offset:offset+2])[0]
+    offset += 2
+
+    ttl = struct.unpack("!H", query[offset:offset+4])[0]
+    offset += 4
+
+    rdlength = struct.unpack("!H", query[offset:offset+2])[0]
+    offset += 2
+
+    rdata = struct.unpack("!H", query[offset:offset+2])[0]
+    offset += 2
+
     question = {
         "name": answer_name,
-        "type": struct.unpack("!H", query[answer_offset: answer_offset+1]),
-        "class": struct.unpack("!H", query[answer_offset + 1: answer_offset + 2]), 
-        "ttl": struct.unpack("!I", query[answer_offset + 2: answer_offset + 6]),
-        "length": struct.unpack("!H", query[answer_offset + 6: answer_offset + 8]),
-        "data": struct.unpack("!H", query[answer_offset + 8:]),
+        "type": type_,
+        "class": class_, 
+        "ttl": ttl,
+        "length": rdlength,
+        "data": rdata,
     }
-    post_answer_offset = answer_offset + 4
-    return question, post_answer_offset 
+
+    return question, offset 
 
 def parse_all_answers(query, qdcount, offset):
     answers = []
 
     for i in range(qdcount):
-        answer, post_answer_offset = parse_question(query, offset)
+        answer, post_answer_offset = parse_answer(query, offset)
         answers.append(answer)
         offset = post_answer_offset
 
