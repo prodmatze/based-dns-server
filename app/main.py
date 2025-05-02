@@ -349,7 +349,7 @@ def main():
                     )
 
 
-                response = build_response(header, questions, answers)
+                response = build_response(headers, questions, answers)
                 udp_socket.sendto(response, source)
 
                 break
