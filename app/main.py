@@ -318,30 +318,29 @@ def main():
                     "arcount": 0
                     }
 
-                for i in range(parsed_response["header"]["qdcount"]):
-                    qname = parsed_response["questions"][i]["name"]
-                    print(f"PARSING QNAME_{i}: {qname}")
-                    questions.append(
-                        {
-                        "name": build_domain_name(qname),
-                        "type": 1,
-                        "class": 1,
-                        }
-                    )
-                
-                    answers.append(
-                        {
-                        "name": build_domain_name(qname),
-                        "type": 1,
-                        "class": 1,
-                        "ttl": 60,
-                        "length": 4,
-                        "data": parsed_response["answers"][0]["data"],
-                        }
-                    )
+                # for i in range(parsed_response["header"]["qdcount"]):
+                #     qname = parsed_response["questions"][i]["name"]
+                #     print(f"PARSING QNAME_{i}: {qname}")
+                #     questions.append(
+                #         {
+                #         "name": build_domain_name(qname),
+                #         "type": 1,
+                #         "class": 1,
+                #         }
+                #     )
+                # 
+                #     answers.append(
+                #         {
+                #         "name": build_domain_name(qname),
+                #         "type": 1,
+                #         "class": 1,
+                #         "ttl": 60,
+                #         "length": 4,
+                #         "data": parsed_response["answers"][0]["data"],
+                #         }
+                #     )
 
-
-                response = build_response(headers, questions, answers)
+                response = build_response(headers, parsed_response["questions"], parsed_response["answers"])
                 udp_socket.sendto(response, source)
 
                 break
