@@ -257,10 +257,15 @@ def build_response(header, questions, answers):
 
     return header + question_section + answer_section
 
-def build_query(header, question):
+def build_query(header, questions):
     header = build_header(header)
 
-    return header + build_question(question)
+    question_section = b""
+
+    for question in questions:
+        question_section += build_question(question)
+
+    return header + question_section 
 
 def main():
     print("Logs from your program will appear here!")
@@ -308,7 +313,8 @@ def main():
                 split_queries = []
 
                 for i in range(len(parsed_query["questions"])):
-                    query = build_query(parsed_query["header"], parsed_query["questions"][i])
+                    query = build_query(parsed_query["header"], [parsed_query["questions"][i]])
+                    print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {parsed_query["header"]} \nQUESTIONS: {[parsed_query["questions"][i]]} ")
                     split_queries.append(query)
 
                 recieved_responses = []
