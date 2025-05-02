@@ -106,7 +106,7 @@ def parse_answer(query, offset):
     rdata = struct.unpack("!H", query[offset:offset+2])[0]
     offset += 2
 
-    question = {
+    answer = {
         "name": answer_name,
         "type": type_,
         "class": class_, 
@@ -115,7 +115,7 @@ def parse_answer(query, offset):
         "data": rdata,
     }
 
-    return question, offset 
+    return answer, offset 
 
 def parse_all_answers(query, qdcount, offset):
     answers = []
@@ -317,7 +317,7 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-                parsed_response = parse_query(response)
+                parsed_response = parse_query(response, contains_answer=True)
 
                 header = parsed_query["header"]
                 questions = parsed_response["questions"]
