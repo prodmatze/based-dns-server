@@ -58,7 +58,7 @@ def parse_all_questions(query, qdcount, offset):
         questions.append(question)
         offset = post_question_offset
 
-    return questions
+    return questions, offset
 
 def parse_name_section(query, offset):
     #offset = byte where name starts
@@ -88,11 +88,39 @@ def parse_name_section(query, offset):
 
     return domain_name, offset
 
-def parse_query(query):
+def parse_answer(query, offset):
+    answer_name, answer_offset = parse_name_section(query, offset)
+    question = {
+        "name": answer_name,
+        "type": struct.unpack("!H", query[answer_offset: answer_offset+1]),
+        "class": struct.unpack("!H", query[answer_offset + 1: answer_offset + 2]), 
+        "ttl": struct.unpack("!I", query[answer_offset + 2: answer_offset + 6]),
+        "length": struct.unpack("!H", query[answer_offset + 6: answer_offset + 8]),
+        "data": struct.unpack("!H", query[answer_offset + 8:]),
+    }
+    post_answer_offset = answer_offset + 4
+    return question, post_answer_offset 
+
+def parse_all_answers(query, qdcount, offset):
+    answers = []
+
+    for i in range(qdcount):
+        answer, post_answer_offset = parse_question(query, offset)
+        answers.append(answer)
+        offset = post_answer_offset
+
+    return answers, offset
+
+def parse_query(query, contains_answer=False):
     header = parse_header(query)
     question_count = header["qdcount"]
 
-    questions = parse_all_questions(query, question_count, 12)
+    questions, questions_offset = parse_all_questions(query, question_count, 12)
+
+    if contains_answer:
+        answer_count = header["ancount"]
+        answers = parse_all_answers(query, answer_count, questions_offset)
+        return {"header": header, "questions": questions, "answers": answers}
 
     return {"header": header, "questions": questions}
 
@@ -273,14 +301,39 @@ def main():
 
                 response, _ = resolver_socket.recvfrom(512)
 
-                # parsed_response = parse_query(response)
-                #
-                # questions = parsed_response["questions"]
-                # answers = parsed_response["answers"]
-                #
-                # response_to_send = build_response(headers, questions, answers)
-                
+                parsed_response = parse_query(response)
 
+                header = parsed_query["header"]
+                questions = parsed_response["questions"]
+                answers = parsed_response["answers"]
+
+                questions = []
+                answers = []
+
+                for i in range(parsed_response["header"]["qdcount"]):
+                    qname = parsed_response["questions"][i]["name"]
+                    print(f"PARSING QNAME_{i}: {qname}")
+                    questions.append(
+                        {
+                        "name": build_domain_name(qname),
+                        "type": 1,
+                        "class": 1,
+                        }
+                    )
+                
+                    answers.append(
+                        {
+                        "name": build_domain_name(qname),
+                        "type": 1,
+                        "class": 1,
+                        "ttl": 60,
+                        "length": 4,
+                        "data": build_ip_address("8.8.8.8"),
+                        }
+                    )
+
+
+                response = build_response(header, questions, answers)
                 udp_socket.sendto(response, source)
 
                 break
