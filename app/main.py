@@ -329,6 +329,7 @@ def main():
                     questions += response["questions"]
                     answers += response["answers"]
 
+                print(f"DEBUG: RECIEVED-RESPONSES[0]: {type(recieved_responses[0])}")
                 headers = {
                     "id": parsed_query["header"]["id"],
                     "flags": recieved_responses[0]["header"]["flags"],
