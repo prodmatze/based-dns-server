@@ -332,7 +332,7 @@ def main():
                 print(f"DEBUG: RECIEVED-RESPONSES[0]: {type(recieved_responses[0])}")
                 headers = {
                     "id": parsed_query["header"]["id"],
-                    "flags": recieved_responses[0]["header"]["flags"],
+                    "flags": build_flags(recieved_responses[0]["header"]["flags"]),
                     "qdcount": len(recieved_responses),
                     "ancount": len(recieved_responses),
                     "nscount": 0,
@@ -343,28 +343,6 @@ def main():
                 udp_socket.sendto(response, source)
 
                 break
-                # for i in range(parsed_response["header"]["qdcount"]):
-                #     qname = parsed_response["questions"][i]["name"]
-                #     print(f"PARSING QNAME_{i}: {qname}")
-                #     questions.append(
-                #         {
-                #         "name": build_domain_name(qname),
-                #         "type": 1,
-                #         "class": 1,
-                #         }
-                #     )
-                # 
-                #     answers.append(
-                #         {
-                #         "name": build_domain_name(qname),
-                #         "type": 1,
-                #         "class": 1,
-                #         "ttl": 60,
-                #         "length": 4,
-                #         "data": parsed_response["answers"][0]["data"],
-                #         }
-                #     )
-
 
             questions = []
             answers = []
