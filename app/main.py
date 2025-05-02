@@ -324,7 +324,7 @@ def main():
                     response, _ = resolver_socket.recvfrom(512)
 
                     parsed_response = parse_query(response, contains_answer=True)
-                    recieved_responses.append(response)
+                    recieved_responses.append(parsed_response)
 
                 for response in recieved_responses:
                     parsed_response = parse_query(response, contains_answer=True)
