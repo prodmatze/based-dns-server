@@ -103,8 +103,8 @@ def parse_answer(query, offset):
     rdlength = struct.unpack("!H", query[offset:offset+2])[0]
     offset += 2
 
-    rdata = struct.unpack("!H", query[offset:offset+2])[0]
-    offset += 2
+    rdata = struct.unpack("!H", query[offset:offset+rdlength])[0]
+    offset += rdlength
 
     answer = {
         "name": answer_name,
