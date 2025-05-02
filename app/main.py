@@ -17,9 +17,6 @@ if args.resolver:
 else:
     print(f"RESOLVING IN LOCAL MODE - NO FORWARDING")
 
-
-
-
 def parse_header(query):
 
     #struct.unpack:
@@ -326,6 +323,7 @@ def main():
 
                     response, _ = resolver_socket.recvfrom(512)
 
+                    parsed_response = parse_query(response, contains_answer=True)
                     recieved_responses.append(response)
 
                 for response in recieved_responses:
@@ -341,8 +339,6 @@ def main():
                     "nscount": 0,
                     "arcount": 0
                     }
-
-
 
                 response = build_response(headers, questions, answers)
                 udp_socket.sendto(response, source)
