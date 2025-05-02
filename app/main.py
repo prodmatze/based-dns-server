@@ -311,11 +311,10 @@ def main():
                 resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
                 split_queries = []
+
                 for i in range(len(parsed_query["questions"])):
                     query = build_query(parsed_query["header"], parsed_query["questions"][i])
                     split_queries.append(query)
-
-
 
                 recieved_responses = []
                 for query in split_queries:
@@ -327,9 +326,8 @@ def main():
                     recieved_responses.append(parsed_response)
 
                 for response in recieved_responses:
-                    parsed_response = parse_query(response, contains_answer=True)
-                    questions += parsed_response["questions"]
-                    answers += parsed_response["answers"]
+                    questions += response["questions"]
+                    answers += response["answers"]
 
                 headers = {
                     "id": parsed_query["header"]["id"],
