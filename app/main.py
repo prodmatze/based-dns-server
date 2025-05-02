@@ -315,6 +315,7 @@ def main():
                 for i in range(len(parsed_query["questions"])):
                     query = build_query(parsed_query["header"], [parsed_query["questions"][i]])
                     print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {parsed_query["header"]} \nQUESTIONS: {[parsed_query["questions"][i]]} ")
+                    print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {type(parsed_query["header"])} \nQUESTIONS: {type([parsed_query["questions"][i]])} ")
                     split_queries.append(query)
 
                 recieved_responses = []
