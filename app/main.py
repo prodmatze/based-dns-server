@@ -257,15 +257,10 @@ def build_response(header, questions, answers):
 
     return header + question_section + answer_section
 
-def build_query(header, questions):
+def build_query(header, question):
     header = build_header(header)
 
-    question_section = b""
-
-    for question in questions:
-        question_section += build_question(question)
-
-    return header + question_section 
+    return header + build_question(question)
 
 def main():
     print("Logs from your program will appear here!")
@@ -332,7 +327,7 @@ def main():
                 print(f"DEBUG: RECIEVED-RESPONSES[0]: {type(recieved_responses[0])}")
                 headers = {
                     "id": parsed_query["header"]["id"],
-                    "flags": build_flags(recieved_responses[0]["header"]["flags"]),
+                    "flags": recieved_responses[0]["header"]["flags"],
                     "qdcount": len(recieved_responses),
                     "ancount": len(recieved_responses),
                     "nscount": 0,
