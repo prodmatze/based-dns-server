@@ -97,7 +97,7 @@ def parse_answer(query, offset):
     class_ = struct.unpack("!H", query[offset:offset+2])[0]
     offset += 2
 
-    ttl = struct.unpack("!H", query[offset:offset+4])[0]
+    ttl = struct.unpack("!I", query[offset:offset+4])[0]
     offset += 4
 
     rdlength = struct.unpack("!H", query[offset:offset+2])[0]
