@@ -273,22 +273,9 @@ def main():
 
             print(f"Incoming Query from {source} : {buf}")
 
-            # parsed_query = {
-            #     "id": id,
-            #     "flags": flags,
-            #     "qdcount": qdcount,
-            #     "ancount": ancount,
-            #     "nscount": nscount,
-            #     "arcount": arcount,
-            # }
-
             #parsing the query:
             parsed_query = parse_query(buf)
-
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
-
-
-                
 
             #setting flags for the answer
             flags_to_send = {
@@ -319,7 +306,8 @@ def main():
 
                 parsed_response = parse_query(response, contains_answer=True)
 
-                header = parsed_query["header"]
+                headers = parsed_query["header"]
+                headers["id"] = parsed_response["header"]["id"]
                 questions = parsed_response["questions"]
                 answers = parsed_response["answers"]
 
@@ -344,7 +332,7 @@ def main():
                         "class": 1,
                         "ttl": 60,
                         "length": 4,
-                        "data": build_ip_address("8.8.8.8"),
+                        "data": parsed_response["answers"][0]["data"],
                         }
                     )
 
