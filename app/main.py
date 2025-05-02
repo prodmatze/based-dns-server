@@ -328,8 +328,8 @@ def main():
 
                 for response in recieved_responses:
                     parsed_response = parse_query(response, contains_answer=True)
-                    questions.append(parsed_response["questions"])
-                    answers.append(parsed_response["answers"])
+                    questions += parsed_response["questions"]
+                    answers += parsed_response["answers"]
 
                 headers = {
                     "id": parsed_query["header"]["id"],
