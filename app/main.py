@@ -306,8 +306,8 @@ def main():
 
                 parsed_response = parse_query(response, contains_answer=True)
 
-                headers = parsed_query["header"]
-                headers["id"] = parsed_response["header"]["id"]
+                headers = parsed_response["header"]
+                headers["id"] = parsed_query["header"]["id"]
                 questions = parsed_response["questions"]
                 answers = parsed_response["answers"]
 
