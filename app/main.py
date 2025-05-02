@@ -112,7 +112,7 @@ def parse_answer(query, offset):
         "class": class_, 
         "ttl": ttl,
         "length": rdlength,
-        "data": rdata,
+        "rdata": rdata,
     }
 
     return answer, offset 
@@ -240,7 +240,7 @@ def build_answer(answer):
     class_answer = answer["class"]
     ttl_answer = answer["ttl"]
     length_answer = answer["length"]
-    data_answer = answer["data"]
+    data_answer = answer["rdata"]
 
     answer = name_answer + struct.pack("!HH", type_answer, class_answer) + struct.pack("!I", ttl_answer) + struct.pack("!H", length_answer) + data_answer
 
@@ -260,6 +260,15 @@ def build_response(header, questions, answers):
 
     return header + question_section + answer_section
 
+def build_query(header, questions):
+    header = build_header(header)
+
+    question_section = b""
+
+    for question in questions:
+        question_section += build_question(question)
+
+    return header + question_section 
 
 def main():
     print("Logs from your program will appear here!")
@@ -303,21 +312,42 @@ def main():
 
             if query_forwarding:
                 resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                resolver_socket.sendto(buf, (resolve_ip, resolve_port))
 
-                response, _ = resolver_socket.recvfrom(512)
+                split_queries = []
+                for i in range(len(parsed_query["questions"])):
+                    query = build_query(parsed_query["header"], parsed_query["questions"][i])
+                    split_queries.append(query)
 
-                parsed_response = parse_query(response, contains_answer=True)
+
+
+                recieved_responses = []
+                for query in split_queries:
+                    resolver_socket.sendto(query, (resolve_ip, resolve_port))
+
+                    response, _ = resolver_socket.recvfrom(512)
+
+                    recieved_responses.append(response)
+
+                for response in recieved_responses:
+                    parsed_response = parse_query(response, contains_answer=True)
+                    questions.append(parsed_response["questions"])
+                    answers.append(parsed_response["answers"])
 
                 headers = {
                     "id": parsed_query["header"]["id"],
-                    "flags": parsed_response["header"]["flags"],
-                    "qdcount": parsed_response["header"]["qdcount"],
-                    "ancount": parsed_response["header"]["qdcount"],
+                    "flags": recieved_responses[0]["header"]["flags"],
+                    "qdcount": len(recieved_responses),
+                    "ancount": len(recieved_responses),
                     "nscount": 0,
                     "arcount": 0
                     }
 
+
+
+                response = build_response(headers, questions, answers)
+                udp_socket.sendto(response, source)
+
+                break
                 # for i in range(parsed_response["header"]["qdcount"]):
                 #     qname = parsed_response["questions"][i]["name"]
                 #     print(f"PARSING QNAME_{i}: {qname}")
@@ -340,10 +370,6 @@ def main():
                 #         }
                 #     )
 
-                response = build_response(headers, parsed_response["questions"], parsed_response["answers"])
-                udp_socket.sendto(response, source)
-
-                break
 
             questions = []
             answers = []
@@ -366,7 +392,7 @@ def main():
                     "class": 1,
                     "ttl": 60,
                     "length": 4,
-                    "data": build_ip_address("8.8.8.8"),
+                    "rdata": build_ip_address("8.8.8.8"),
                     }
                 )
 
