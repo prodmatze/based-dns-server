@@ -39,27 +39,6 @@ def parse_header(query):
 
     return header
 
-def parse_question(query, offset):
-    question_name, question_offset = parse_name_section(query, offset)
-    question = {
-        "name": question_name,
-        "type": struct.unpack("!H", query[question_offset: question_offset+2]),
-        "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])
-    }
-
-    post_question_offset = question_offset + 4
-    return question, post_question_offset 
-
-def parse_all_questions(query, qdcount, offset):
-    questions = []
-
-    for i in range(qdcount):
-        question, post_question_offset = parse_question(query, offset)
-        questions.append(question)
-        offset = post_question_offset
-
-    return questions, offset
-
 def parse_name_section(query, offset):
     #offset = byte where name starts
     #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
@@ -87,6 +66,27 @@ def parse_name_section(query, offset):
     domain_name = ".".join(labels)
 
     return domain_name, offset
+
+def parse_question(query, offset):
+    question_name, question_offset = parse_name_section(query, offset)
+    question = {
+        "name": question_name,
+        "type": struct.unpack("!H", query[question_offset: question_offset+2]),
+        "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])
+    }
+
+    post_question_offset = question_offset + 4
+    return question, post_question_offset 
+
+def parse_all_questions(query, qdcount, offset):
+    questions = []
+
+    for i in range(qdcount):
+        question, post_question_offset = parse_question(query, offset)
+        questions.append(question)
+        offset = post_question_offset
+
+    return questions, offset
 
 def parse_answer(query, offset):
     answer_name, offset = parse_name_section(query, offset)
@@ -132,13 +132,13 @@ def parse_query(query, contains_answer=False):
     question_count = header["qdcount"]
 
     questions, questions_offset = parse_all_questions(query, question_count, 12)
+    answers = []
 
     if contains_answer:
         answer_count = header["ancount"]
         answers = parse_all_answers(query, answer_count, questions_offset)
-        return {"header": header, "questions": questions, "answers": answers}
 
-    return {"header": header, "questions": questions}
+    return {"header": header, "questions": questions, "answers": answers}
 
 #setting individual bits and shifting to the right flag positions
 #after ANDing them with the flag header, multibit fields need to get shifted right again!
@@ -298,6 +298,9 @@ def main():
                 "arcount": 0
                 }
 
+            questions = []
+            answers = []
+
             if query_forwarding:
                 resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 resolver_socket.sendto(buf, (resolve_ip, resolve_port))
@@ -306,13 +309,14 @@ def main():
 
                 parsed_response = parse_query(response, contains_answer=True)
 
-                headers = parsed_response["header"]
-                headers["id"] = parsed_query["header"]["id"]
-                questions = parsed_response["questions"]
-                answers = parsed_response["answers"]
-
-                questions = []
-                answers = []
+                headers = {
+                    "id": parsed_query["header"]["id"],
+                    "flags": parsed_response["header"]["flags"],
+                    "qdcount": parsed_response["header"]["qdcount"],
+                    "ancount": parsed_response["header"]["qdcount"],
+                    "nscount": 0,
+                    "arcount": 0
+                    }
 
                 for i in range(parsed_response["header"]["qdcount"]):
                     qname = parsed_response["questions"][i]["name"]
