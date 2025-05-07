@@ -40,18 +40,18 @@ def parse_name_section(query, offset):
     #offset = byte where name starts
     #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
     labels = []
-
     pointer_indicator = 0b11000000
     pointer_mask = 0b0011111111111111
 
+    offset_start = offset
     while True:
         #query[offset] accesses individual byte
         label_length = query[offset]
-        if query[offset] & pointer_indicator == pointer_indicator:
+        if label_length & pointer_indicator == pointer_indicator:
             pointer_bytes = query[offset:offset+2]
             pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask
-            domain_name, _ = parse_name_section(query, pointer)
-            return domain_name, offset + 2
+            domain_name, _, _ = parse_name_section(query, pointer)
+            return domain_name, offset + 2, query[offset:offset+2]
         if label_length == 0:           #repeat until loop reaches null byte
             offset += 1                 #skip null byte
             break
@@ -62,14 +62,15 @@ def parse_name_section(query, offset):
 
     domain_name = ".".join(labels)
 
-    return domain_name, offset
+    return domain_name, offset, query[offset_start:offset]
 
 def parse_question(query, offset):
-    question_name, question_offset = parse_name_section(query, offset)
+    question_name, question_offset, raw_name = parse_name_section(query, offset)
     question = {
         "name": question_name,
-        "type": struct.unpack("!H", query[question_offset: question_offset+2]),
-        "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])
+        "raw_name": raw_name,
+        "type": struct.unpack("!H", query[question_offset: question_offset+2])[0],
+        "class": struct.unpack("!H", query[question_offset + 2: question_offset + 4])[0]
     }
 
     post_question_offset = question_offset + 4
@@ -86,7 +87,7 @@ def parse_all_questions(query, qdcount, offset):
     return questions, offset
 
 def parse_answer(query, offset):
-    answer_name, offset = parse_name_section(query, offset)
+    answer_name, offset, raw_name = parse_name_section(query, offset)
 
     type_ = struct.unpack("!H", query[offset:offset+2])[0]
     offset += 2
@@ -105,6 +106,7 @@ def parse_answer(query, offset):
 
     answer = {
         "name": answer_name,
+        "raw_name": raw_name,
         "type": type_,
         "class": class_, 
         "ttl": ttl,
@@ -133,7 +135,7 @@ def parse_query(query, contains_answer=False):
 
     if contains_answer:
         answer_count = header["ancount"]
-        answers = parse_all_answers(query, answer_count, questions_offset)
+        answers, answer_offset = parse_all_answers(query, answer_count, questions_offset)
 
     return {"header": header, "questions": questions, "answers": answers}
 
@@ -223,16 +225,17 @@ def build_header(header):
     return header
 
 def build_question(question):
-    name_question = question["name"]
+    name_question = question.get("raw_name", build_domain_name(question["name"]))
     type_question = question["type"]
     class_question = question["class"]
 
     question = name_question + struct.pack("!HH", type_question, class_question)
+    print(f"Building single question...")
 
     return question
 
 def build_answer(answer):
-    name_answer = answer["name"]
+    name_answer = answer.get("raw_name", build_domain_name(answer["name"]))
     type_answer = answer["type"]
     class_answer = answer["class"]
     ttl_answer = answer["ttl"]
@@ -258,17 +261,23 @@ def build_response(header, questions, answers):
     return header + question_section + answer_section
 
 def build_query(header, questions):
+
+    print(f"TRYING TO BUILD QUERY WITH... Header: {header} ... questions: {questions}")
     header = build_header(header)
 
     question_section = b""
+    print(f"question_section_type : {type(question_section)}")
 
     for question in questions:
+        print(f"Now building question section with question: {question} from {questions} !")
+        print(f"single question_type : {type(build_question(question))}")
         question_section += build_question(question)
+
+    print(f"Created Question: {header + question_section}")
 
     return header + question_section 
 
 def main():
-    print("Logs from your program will appear here!")
 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.bind(("127.0.0.1", 2053))
@@ -312,16 +321,11 @@ def main():
 
                 split_queries = []
 
-                print(f"DEBUG - RECIEVED QUERY WITH {len(parsed_query['questions'])} QUESTIONS")
-
                 for i in range(len(parsed_query["questions"])):
-                    print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {parsed_query["header"]} \nQUESTIONS: {[parsed_query["questions"][i]]} ")
-                    print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {type(parsed_query["header"])} \nQUESTIONS: {type(parsed_query["questions"][i])} ")
-                    print(f"NOW BUILDING QUERY {i}...")
-                    query = build_query(parsed_query["header"], [parsed_query["questions"][i]])
-                    print(f"NEW QUERY {i}: {query}")
+                    question_list = [parsed_query["questions"][i]]
+
+                    query = build_query(parsed_query["header"], question_list)
                     split_queries.append(query)
-                    print(f"split_queries : {split_queries} \nsplit_queries type, len : {type(split_queries), len(split_queries)}")
 
                 recieved_responses = []
                 for query in split_queries:
@@ -329,8 +333,13 @@ def main():
 
                     response, _ = resolver_socket.recvfrom(512)
 
+
                     parsed_response = parse_query(response, contains_answer=True)
                     recieved_responses.append(parsed_response)
+                    print(f"Parsed response: {parsed_response}")
+
+
+                print(f"TOTAL RECIEVED RESPONSES: {recieved_responses}")
 
                 for response in recieved_responses:
                     questions += response["questions"]
@@ -340,16 +349,18 @@ def main():
                 headers = {
                     "id": parsed_query["header"]["id"],
                     "flags": recieved_responses[0]["header"]["flags"],
-                    "qdcount": len(recieved_responses),
-                    "ancount": len(recieved_responses),
+                    "qdcount": len(questions),
+                    "ancount": len(answers),
                     "nscount": 0,
                     "arcount": 0
                     }
 
+                print(f"Now attempting to build response with... \nheaders : {headers} \nquestions : {questions}, {type(questions)} \nanswers : {answers}, {type(answers)}")
                 response = build_response(headers, questions, answers)
-                udp_socket.sendto(response, source)
 
-                break
+                udp_socket.sendto(response, source)
+                continue
+
 
             questions = []
             answers = []
@@ -360,6 +371,7 @@ def main():
                 questions.append(
                     {
                     "name": build_domain_name(qname),
+                    "raw_name": qname,
                     "type": 1,
                     "class": 1,
                     }
@@ -368,6 +380,7 @@ def main():
                 answers.append(
                     {
                     "name": build_domain_name(qname),
+                    "raw_name": qname,
                     "type": 1,
                     "class": 1,
                     "ttl": 60,
