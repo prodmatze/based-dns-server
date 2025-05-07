@@ -312,6 +312,8 @@ def main():
 
                 split_queries = []
 
+                print(f"DEBUG - RECIEVED QUERY WITH {len(parsed_query['questions'])} QUESTIONS")
+
                 for i in range(len(parsed_query["questions"])):
                     print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {parsed_query["header"]} \nQUESTIONS: {[parsed_query["questions"][i]]} ")
                     print(f"DEBUG - BUILDING QUERY WITH \nHEADER: {type(parsed_query["header"])} \nQUESTIONS: {type([parsed_query["questions"][i]])} ")
