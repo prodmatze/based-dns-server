@@ -8,6 +8,8 @@ args = argparser.parse_args()
 
 query_forwarding = False
 
+print(f"RUNNING NEW INSTANCE OF CODE!!!!!!! FORWARDING ENABLED: {query_forwarding}")
+
 if args.resolver:
     resolve_ip, resolve_port = args.resolver.split(":")
     resolve_port = int(resolve_port)
@@ -15,6 +17,7 @@ if args.resolver:
     query_forwarding = True
     print(f"RESOLVING IN FORWARDING MODE - Using resolver at {resolve_ip}:{resolve_port}")
 else:
+    query_forwarding = False
     print(f"RESOLVING IN LOCAL MODE - NO FORWARDING")
 
 def parse_header(query):
@@ -43,26 +46,39 @@ def parse_name_section(query, offset):
     pointer_indicator = 0b11000000
     pointer_mask = 0b0011111111111111
 
-    offset_start = offset
+    jumped = False
+    original_offset = offset
+    final_offset = offset
+
     while True:
         #query[offset] accesses individual byte
-        label_length = query[offset]
-        if label_length & pointer_indicator == pointer_indicator:
-            pointer_bytes = query[offset:offset+2]
-            pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask
-            domain_name, _, _ = parse_name_section(query, pointer)
-            return domain_name, offset + 2, query[offset:offset+2]
-        if label_length == 0:           #repeat until loop reaches null byte
-            offset += 1                 #skip null byte
+        label_length = query[offset]        #beginning of label section
+        if label_length & pointer_indicator == pointer_indicator:       #check if beginning is a pointer
+            pointer_bytes = query[offset:offset+2]                      #pointers are 2 bytes
+            pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask  
+
+            if not jumped:
+                final_offset = offset + 2
+                jumped = True
+
+            offset = pointer
+            continue
+
+        if label_length == 0:               #repeat until loop reaches null byte
+            if not jumped:              
+                final_offset = offset + 1   #skip null byte
+
             break
-        offset += 1                     #start counting from one after length byte (one after the offset)
-        label = query[offset:offset + label_length].decode()
+        
+        offset += 1                         #length is one byte, so start parsing one after the length byte
+        label = query[offset:offset+label_length].decode()
         labels.append(label)
         offset += label_length
 
     domain_name = ".".join(labels)
+    raw_name = query[original_offset:final_offset]
 
-    return domain_name, offset, query[offset_start:offset]
+    return domain_name, final_offset, raw_name
 
 def parse_question(query, offset):
     question_name, question_offset, raw_name = parse_name_section(query, offset)
@@ -225,7 +241,7 @@ def build_header(header):
     return header
 
 def build_question(question):
-    name_question = question.get("raw_name", build_domain_name(question["name"]))
+    name_question = build_domain_name(question["name"])
     type_question = question["type"]
     class_question = question["class"]
 
@@ -235,7 +251,7 @@ def build_question(question):
     return question
 
 def build_answer(answer):
-    name_answer = answer.get("raw_name", build_domain_name(answer["name"]))
+    name_answer = build_domain_name(answer["name"])
     type_answer = answer["type"]
     class_answer = answer["class"]
     ttl_answer = answer["ttl"]
@@ -262,7 +278,7 @@ def build_response(header, questions, answers):
 
 def build_query(header, questions):
 
-    print(f"TRYING TO BUILD QUERY WITH... Header: {header} ... questions: {questions}")
+    print(f"TRYING TO BUILD QUERY WITH... \nHeader: {header} ... \nQuestions: {questions}")
     header = build_header(header)
 
     question_section = b""
@@ -284,6 +300,8 @@ def main():
 
     while True:
         try:
+            print(f"Forwarding enabled: {query_forwarding}")
+
             buf, source = udp_socket.recvfrom(512)
 
             print(f"Incoming Query from {source} : {buf}")
@@ -321,10 +339,10 @@ def main():
 
                 split_queries = []
 
-                for i in range(len(parsed_query["questions"])):
-                    question_list = [parsed_query["questions"][i]]
-
-                    query = build_query(parsed_query["header"], question_list)
+                for question in parsed_query["questions"]:
+                    query_header = parsed_query["header"].copy()
+                    query_header["qdcount"] = 1
+                    query = build_query(query_header, [question])
                     split_queries.append(query)
 
                 recieved_responses = []
@@ -341,6 +359,7 @@ def main():
 
                 print(f"TOTAL RECIEVED RESPONSES: {recieved_responses}")
 
+                print(f"RECIEVED RESPONSES: {len(recieved_responses)} \n {recieved_responses}")
                 for response in recieved_responses:
                     questions += response["questions"]
                     answers += response["answers"]
