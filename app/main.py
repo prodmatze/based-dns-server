@@ -2,8 +2,9 @@ import socket
 import struct
 import argparse
 
+#configuration for command-line args
 argparser = argparse.ArgumentParser()
-argparser.add_argument("--resolver")
+argparser.add_argument("--resolver", help="Forward DNS queries to the specified resolver (ip:port)")
 args = argparser.parse_args()
 
 query_forwarding = False
@@ -18,6 +19,7 @@ else:
     query_forwarding = False
     print(f"RESOLVING IN LOCAL MODE - NO FORWARDING")
 
+### DNS HEADER PARSING ###
 def parse_header(query):
 
     #struct.unpack:
@@ -37,6 +39,7 @@ def parse_header(query):
 
     return header
 
+### DNS NAME COMPRESSION PARSING ###
 def parse_name_section(query, offset):
     #offset = byte where name starts
     #encoded name = [label_length] -> [label] -> [label_length] -> [label] -> [null byte]
@@ -44,19 +47,19 @@ def parse_name_section(query, offset):
     pointer_indicator = 0b11000000
     pointer_mask = 0b0011111111111111
 
-    jumped = False
+    jumped = False              #track if we followed a pointer
     original_offset = offset
     final_offset = offset
 
     while True:
-        #query[offset] accesses individual byte
-        label_length = query[offset]        #beginning of label section
+        #query[offset] : accesses individual byte
+        label_length = query[offset]                                    #beginning of label section
         if label_length & pointer_indicator == pointer_indicator:       #check if beginning is a pointer
             pointer_bytes = query[offset:offset+2]                      #pointers are 2 bytes
-            pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask  
+            pointer = struct.unpack("!H", pointer_bytes)[0] & pointer_mask #get pointer value
 
             if not jumped:
-                final_offset = offset + 2
+                final_offset = offset + 2                               #increment final offset by 2(length of pointer) only once, when a pointer is encountered
                 jumped = True
 
             offset = pointer
@@ -78,6 +81,7 @@ def parse_name_section(query, offset):
 
     return domain_name, final_offset, raw_name
 
+### QUESTION PARSING ###
 def parse_question(query, offset):
     question_name, question_offset, raw_name = parse_name_section(query, offset)
     question = {
@@ -100,6 +104,7 @@ def parse_all_questions(query, qdcount, offset):
 
     return questions, offset
 
+### ANSWER PARSING ### 
 def parse_answer(query, offset):
     answer_name, offset, raw_name = parse_name_section(query, offset)
 
@@ -140,6 +145,7 @@ def parse_all_answers(query, qdcount, offset):
 
     return answers, offset
 
+### PARSE COMPLETE QUERY ### 
 def parse_query(query, contains_answer=False):
     header = parse_header(query)
     question_count = header["qdcount"]
@@ -153,6 +159,7 @@ def parse_query(query, contains_answer=False):
 
     return {"header": header, "questions": questions, "answers": answers}
 
+### FLAG DECODING AND BUILDING ###
 #setting individual bits and shifting to the right flag positions
 #after ANDing them with the flag header, multibit fields need to get shifted right again!
 flag_masks = {
@@ -204,6 +211,7 @@ def build_flags(flag_dict):
 
     return flags
 
+### BUILDERS ###
 def build_domain_name(domain_name):
     labels = domain_name.split(".")
     encoded_name = b""
@@ -275,22 +283,15 @@ def build_response(header, questions, answers):
     return header + question_section + answer_section
 
 def build_query(header, questions):
-
-    print(f"TRYING TO BUILD QUERY WITH... \nHeader: {header} ... \nQuestions: {questions}")
     header = build_header(header)
-
     question_section = b""
-    print(f"question_section_type : {type(question_section)}")
 
     for question in questions:
-        print(f"Now building question section with question: {question} from {questions} !")
-        print(f"single question_type : {type(build_question(question))}")
         question_section += build_question(question)
-
-    print(f"Created Question: {header + question_section}")
 
     return header + question_section 
 
+### MAIN SERVER LOOP ### 
 def main():
 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -298,17 +299,14 @@ def main():
 
     while True:
         try:
-            print(f"Forwarding enabled: {query_forwarding}")
-
             buf, source = udp_socket.recvfrom(512)
 
             print(f"Incoming Query from {source} : {buf}")
-
             #parsing the query:
             parsed_query = parse_query(buf)
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
 
-            #setting flags for the answer
+            #build response header template
             flags_to_send = {
                 "qr": 1,              
                 "opcode": query_flags["opcode"],     
@@ -332,6 +330,7 @@ def main():
             questions = []
             answers = []
 
+            #forwarding mode
             if query_forwarding:
                 resolver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -349,20 +348,16 @@ def main():
 
                     response, _ = resolver_socket.recvfrom(512)
 
-
                     parsed_response = parse_query(response, contains_answer=True)
                     recieved_responses.append(parsed_response)
-                    print(f"Parsed response: {parsed_response}")
-
 
                 print(f"TOTAL RECIEVED RESPONSES: {recieved_responses}")
-
                 print(f"RECIEVED RESPONSES: {len(recieved_responses)} \n {recieved_responses}")
+
                 for response in recieved_responses:
                     questions += response["questions"]
                     answers += response["answers"]
 
-                print(f"DEBUG: RECIEVED-RESPONSES[0]: {type(recieved_responses[0])}")
                 headers = {
                     "id": parsed_query["header"]["id"],
                     "flags": recieved_responses[0]["header"]["flags"],
@@ -378,10 +373,9 @@ def main():
                 udp_socket.sendto(response, source)
                 continue
 
-
+            #local resolution (mock)
             questions = []
             answers = []
-
             for i in range(parsed_query["header"]["qdcount"]):
                 qname = parsed_query["questions"][i]["name"]
                 print(f"PARSING QNAME_{i}: {qname}")
