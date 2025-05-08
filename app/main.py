@@ -235,6 +235,7 @@ def build_ip_address(ip_address):
 # !HH = Two 16-bit unsigned integers (4bytes) --> ONE AFTER THE OTHER
 # !I = One 32-bit unsigned integer (4bytes) --> ALL IN ONE SINGLE STRING
 def build_header(header):
+    print("Building Header...")
     id_header = header["id"]
     flags_header = header["flags"]
     qdcount_header = header["qdcount"]
@@ -247,16 +248,17 @@ def build_header(header):
     return header
 
 def build_question(question):
+    print(f"Building Question...")
     name_question = build_domain_name(question["name"])
     type_question = question["type"]
     class_question = question["class"]
 
     question = name_question + struct.pack("!HH", type_question, class_question)
-    print(f"Building single question...")
 
     return question
 
 def build_answer(answer):
+    print(f"Building Answer...")
     name_answer = build_domain_name(answer["name"])
     type_answer = answer["type"]
     class_answer = answer["class"]
@@ -269,6 +271,7 @@ def build_answer(answer):
     return answer
 
 def build_response(header, questions, answers):
+    print(f"\nBuilding Response with {len(questions)} Question(s) + {len(answers)} Answer(s):\n")
     header = build_header(header)
 
     question_section = b""
@@ -280,15 +283,19 @@ def build_response(header, questions, answers):
     for answer in answers:
         answer_section += build_answer(answer)
 
+    print("\nDone. RESPONSE is Built! \n")
+
     return header + question_section + answer_section
 
 def build_query(header, questions):
+    print(f"\nBuilding Query with {len(questions)} Question(s):\n")
     header = build_header(header)
     question_section = b""
 
     for question in questions:
         question_section += build_question(question)
 
+    print("\nDone. QUERY is Built! \n")
     return header + question_section 
 
 ### MAIN SERVER LOOP ### 
@@ -298,10 +305,11 @@ def main():
     udp_socket.bind(("127.0.0.1", 2053))
 
     while True:
+        print("\nAwaiting incoming Queries...\n")
         try:
             buf, source = udp_socket.recvfrom(512)
 
-            print(f"Incoming Query from {source} : {buf}")
+            print(f"Incoming Query from {source} : {buf}\n")
             #parsing the query:
             parsed_query = parse_query(buf)
             query_flags = get_flags_from_flag(parsed_query["header"]["flags"])
@@ -339,20 +347,25 @@ def main():
                 for question in parsed_query["questions"]:
                     query_header = parsed_query["header"].copy()
                     query_header["qdcount"] = 1
+                    query_header["arcount"] = 0
                     query = build_query(query_header, [question])
                     split_queries.append(query)
 
                 recieved_responses = []
                 for query in split_queries:
-                    resolver_socket.sendto(query, (resolve_ip, resolve_port))
+                    print(f"Forwarding Query to Resolver {resolve_ip}:{resolve_port} ...\n")
+                    try:
+                        resolver_socket.sendto(query, (resolve_ip, resolve_port))
+                        response, _ = resolver_socket.recvfrom(512)
 
-                    response, _ = resolver_socket.recvfrom(512)
+                        parsed_response = parse_query(response, contains_answer=True)
+                        print(f"Recieved Response from Resolver for Query: {parsed_query['questions'][0]['name']}")
+                        recieved_responses.append(parsed_response)
 
-                    parsed_response = parse_query(response, contains_answer=True)
-                    recieved_responses.append(parsed_response)
+                    except socket.timeout:
+                        print(f"No response from resolver for query: {parsed_query['questions'][0]['name']}")
 
-                print(f"TOTAL RECIEVED RESPONSES: {recieved_responses}")
-                print(f"RECIEVED RESPONSES: {len(recieved_responses)} \n {recieved_responses}")
+                print(f"Recieved a total of {len(recieved_responses)} Response(s)!\n")
 
                 for response in recieved_responses:
                     questions += response["questions"]
@@ -367,9 +380,10 @@ def main():
                     "arcount": 0
                     }
 
-                print(f"Now attempting to build response with... \nheaders : {headers} \nquestions : {questions}, {type(questions)} \nanswers : {answers}, {type(answers)}")
+                print(f"Now rebuilding/merging Response(s) with... \nHeader : {headers} \nQuestion(s) ({len(questions)}) : {questions}, {type(questions)} \nAnswer(s) ({len(answers)}) : {answers}, {type(answers)}")
                 response = build_response(headers, questions, answers)
 
+                print(f"Forwarding Response to original Client...")
                 udp_socket.sendto(response, source)
                 continue
 
@@ -378,10 +392,9 @@ def main():
             answers = []
             for i in range(parsed_query["header"]["qdcount"]):
                 qname = parsed_query["questions"][i]["name"]
-                print(f"PARSING QNAME_{i}: {qname}")
                 questions.append(
                     {
-                    "name": build_domain_name(qname),
+                    "name": qname,
                     "raw_name": qname,
                     "type": 1,
                     "class": 1,
@@ -390,7 +403,7 @@ def main():
             
                 answers.append(
                     {
-                    "name": build_domain_name(qname),
+                    "name": qname,
                     "raw_name": qname,
                     "type": 1,
                     "class": 1,
@@ -400,12 +413,12 @@ def main():
                     }
                 )
 
-            print(f"BUILT THESE QUESTIONS ({len(questions)}): {questions}")
-            print(f"BUILT THESE ANSWERS ({len(answers)}): {answers}")
+            print(f"\nBuilt {len(questions)} Question(s):\n{questions} \n")
+            print(f"Built{len(answers)} Answer(s):\n{answers}")
 
             response = build_response(headers, questions, answers)
 
-            print(f"Sending Response: {response}")
+            print(f"Sending Response to Client: {response}")
 
             udp_socket.sendto(response, source)
         except Exception as e:

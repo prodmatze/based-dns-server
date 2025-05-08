@@ -18,19 +18,37 @@ It handles raw DNS query parsing, name compression resolution, and query forward
 
 ## 📦 How to Use
 
-### 1. **Local Mock Server (answers with 8.8.8.8):**
+### 1. **Run the DNS server**
+
+#### Local mock mode (always responds with 8.8.8.8):
 
 ```bash
-python app/main.py
+python dns_server.py
 ```
 
-### 2. **Forwarding Mode (real DNS resolution):**
+#### Forwarding mode (real resolution via upstream):
 
 ```bash
-python app/main.py --resolver 1.1.1.1:53
+python dns_server.py --resolver 1.1.1.1:53
 ```
 
-In this mode, the server splits multi-question queries into individual requests (as required by the upstream resolver), forwards them, and merges the responses back.
+---
+
+### 2. **Query the server**
+
+In a **separate terminal**, send a DNS query to the server you just opened using tools like `dig`:
+
+```bash
+dig @127.0.0.1 -p 2053 example.com A
+```
+
+> 🔎 This sends an A-record DNS query for `example.com` to your server on port 2053.
+
+You can try multi-question queries or test compression by querying multiple subdomains:
+
+```bash
+dig @127.0.0.1 -p 2053 abc.longdomain.com A def.longdomain.com A
+```
 
 ---
 
