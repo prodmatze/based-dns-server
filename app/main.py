@@ -8,8 +8,6 @@ args = argparser.parse_args()
 
 query_forwarding = False
 
-print(f"RUNNING NEW INSTANCE OF CODE!!!!!!! FORWARDING ENABLED: {query_forwarding}")
-
 if args.resolver:
     resolve_ip, resolve_port = args.resolver.split(":")
     resolve_port = int(resolve_port)
